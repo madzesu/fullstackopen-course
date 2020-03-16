@@ -24,13 +24,19 @@ const App = () => {
     const [filterValue, setFilterValue] = useState('');
     const [message, setMessage] = useState({ text: '', type: '' });
 
-    useEffect(() => {
+    const fetchPersons = () => {
         personService
             .getAll()
             .then(initialPersons => {
                 setPersons(initialPersons);
             })
-            .catch(error => console.error('Fetching all persons failed'));
+            .catch(error => {
+                console.error('Fetching all persons failed')
+            });
+    };
+
+    useEffect(() => {
+        fetchPersons();
     }, []);
 
     const handleFilterChange = e => {
@@ -40,6 +46,23 @@ const App = () => {
     const resetForm = () => {
         setNewName('');
         setNewNumber('');
+    };
+
+    const handleAddErrorResponse = error => {
+        const { errors } = error.response.data;
+        const errorStrings = Object.keys(errors).map(key => `${key}: ${errors[key]}`);
+        setMessage({
+            text: (
+                <div>
+                    Error:
+                    {errorStrings.map((string, i) => (
+                        <div key={i}>{string}</div>
+                    ))}
+                </div>
+            ),
+            type: 'error'
+        });
+        timeoutMessageClear();
     };
 
     const addPerson = person => {
@@ -57,13 +80,7 @@ const App = () => {
                     setMessage({ text: '', type: '' });
                 }, 5000);
             })
-            .catch(() => {
-                setMessage({
-                    text: `Server error: could not add ${person.name}`,
-                    type: 'error'
-                });
-                timeoutMessageClear();
-            });
+            .catch(handleAddErrorResponse);
     };
 
     const timeoutMessageClear = (timeout = 5000) => {
@@ -82,15 +99,18 @@ const App = () => {
     };
 
     const removePerson = id => {
+        const person = findPersonById(persons, id);
         personService
             .remove(id)
-            .then(status => {
-                if (status === 200) {
-                    setPersons(persons.filter(person => person.id !== id));
-                }
+            .then(() => {
+                setPersons(persons.filter(person => person.id !== id));
+                setMessage({
+                    text: `${person.name} has been removed succesfully`,
+                    type: 'success'
+                });
+                timeoutMessageClear();
             })
             .catch(() => {
-                const person = findPersonById(persons, id);
                 triggerErrorNotification(person);
             });
     };
